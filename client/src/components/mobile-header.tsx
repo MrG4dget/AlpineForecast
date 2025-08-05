@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Wifi, WifiOff, MapPin, CloudRain } from "lucide-react";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import type { WeatherData } from "@shared/schema";
 
 export default function MobileHeader() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -22,7 +23,7 @@ export default function MobileHeader() {
   }, []);
 
   // Fetch current weather for location
-  const { data: weather } = useQuery({
+  const { data: weather } = useQuery<WeatherData>({
     queryKey: ["/api/weather/current", location?.latitude, location?.longitude],
     enabled: !!location && isOnline,
   });
@@ -47,7 +48,7 @@ export default function MobileHeader() {
           </div>
           
           {/* Weather Info */}
-          {weather && (
+          {weather && weather.temperature !== undefined && (
             <div className="flex items-center space-x-1 bg-forest-600 px-2 py-1 rounded-full text-xs">
               <CloudRain className="h-3 w-3 text-blue-300" />
               <span data-testid="current-temperature">
