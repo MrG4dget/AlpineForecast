@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Filter, BookOpen, AlertTriangle } from "lucide-react";
+import { Search, Filter, BookOpen, AlertTriangle, MapPin } from "lucide-react";
 import type { MushroomSpecies } from "@shared/schema";
 
 export default function SpeciesGuide() {
