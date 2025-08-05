@@ -24,6 +24,51 @@ interface MushroomMapProps {
   radius: number;
 }
 
+// Overlay state interface
+interface OverlayState {
+  foragingLocations: boolean;
+  forestTypes: boolean;
+  elevationContours: boolean;
+  weatherOverlay: boolean;
+}
+
+// Custom WMS Layer Component
+function WMSLayer({ 
+  url, 
+  layers, 
+  format = "image/png", 
+  transparent = true, 
+  opacity = 0.6,
+  attribution = ""
+}: {
+  url: string;
+  layers: string;
+  format?: string;
+  transparent?: boolean;
+  opacity?: number;
+  attribution?: string;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const wmsLayer = L.tileLayer.wms(url, {
+      layers,
+      format,
+      transparent,
+      opacity,
+      attribution,
+    });
+
+    map.addLayer(wmsLayer);
+
+    return () => {
+      map.removeLayer(wmsLayer);
+    };
+  }, [map, url, layers, format, transparent, opacity, attribution]);
+
+  return null;
+}
+
 // Zoom Control Component
 function ZoomControl({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut: () => void }) {
   return (
@@ -53,7 +98,21 @@ function ZoomControl({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut:
 export default function MushroomMap({ center, locations, radius }: MushroomMapProps) {
   const [zoom, setZoom] = useState(12);
   const [showLayers, setShowLayers] = useState(false);
+  const [overlays, setOverlays] = useState<OverlayState>({
+    foragingLocations: true,
+    forestTypes: false,
+    elevationContours: false,
+    weatherOverlay: false,
+  });
   const mapRef = useRef<L.Map | null>(null);
+
+  // Handle overlay toggle
+  const toggleOverlay = (overlayName: keyof OverlayState) => {
+    setOverlays(prev => ({
+      ...prev,
+      [overlayName]: !prev[overlayName]
+    }));
+  };
 
   // Create custom markers for different probability levels
   const createProbabilityIcon = (probability: number) => {
@@ -117,11 +176,47 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
         zoomControl={false}
         ref={mapRef}
       >
-        {/* OpenStreetMap Tiles */}
+        {/* Base Map Tiles */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+        
+        {/* Swiss Forest Types Overlay - Using swisstopo WMS */}
+        {overlays.forestTypes && (
+          <WMSLayer
+            url="https://wms.geo.admin.ch/"
+            layers="ch.bafu.waldtypisierung"
+            format="image/png"
+            transparent={true}
+            opacity={0.6}
+            attribution='&copy; <a href="https://www.geo.admin.ch/">swisstopo</a>'
+          />
+        )}
+
+        {/* Swiss Elevation Contours - Using swisstopo WMS */}
+        {overlays.elevationContours && (
+          <WMSLayer
+            url="https://wms.geo.admin.ch/"
+            layers="ch.swisstopo.pixelkarte-farbe-pk25.noscale"
+            format="image/png"
+            transparent={true}
+            opacity={0.4}
+            attribution='&copy; <a href="https://www.swisstopo.admin.ch/">swisstopo</a>'
+          />
+        )}
+
+        {/* Weather Overlay - Temperature visualization */}
+        {overlays.weatherOverlay && (
+          <WMSLayer
+            url="https://wms.geo.admin.ch/"
+            layers="ch.meteoschweiz.messwerte-lufttemperatur-10min"
+            format="image/png"
+            transparent={true}
+            opacity={0.5}
+            attribution='&copy; <a href="https://www.meteoschweiz.admin.ch/">MeteoSwiss</a>'
+          />
+        )}
         
         {/* User Location Marker */}
         <Marker 
@@ -150,8 +245,8 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
           }}
         />
 
-        {/* Foraging Location Markers */}
-        {locations.map((location) => (
+        {/* Foraging Location Markers - Conditionally rendered */}
+        {overlays.foragingLocations && locations.map((location) => (
           <Marker
             key={location.id}
             position={[location.latitude, location.longitude]}
@@ -220,29 +315,64 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
             <span>Your Location</span>
           </div>
         </div>
+        {/* Overlay Legend */}
+        {(overlays.forestTypes || overlays.elevationContours || overlays.weatherOverlay) && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <h5 className="font-medium text-gray-900 mb-1">Active Overlays</h5>
+            {overlays.forestTypes && <div className="text-green-600">🌲 Forest Types</div>}
+            {overlays.elevationContours && <div className="text-brown-600">⛰️ Elevation</div>}
+            {overlays.weatherOverlay && <div className="text-blue-600">🌡️ Temperature</div>}
+          </div>
+        )}
       </div>
 
-      {/* Layers Panel */}
+      {/* Enhanced Layers Panel with Working Controls */}
       {showLayers && (
         <Card className="absolute top-4 left-4 p-3 shadow-lg" data-testid="layers-panel">
           <h4 className="font-medium text-gray-900 mb-2 text-sm">Map Layers</h4>
           <div className="space-y-2 text-xs">
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" defaultChecked className="rounded" />
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={overlays.foragingLocations}
+                onChange={() => toggleOverlay('foragingLocations')}
+                className="rounded" 
+              />
               <span>Foraging Locations</span>
             </label>
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" className="rounded" />
-              <span>Forest Types</span>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={overlays.forestTypes}
+                onChange={() => toggleOverlay('forestTypes')}
+                className="rounded" 
+              />
+              <span>Forest Types (Swiss)</span>
             </label>
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" className="rounded" />
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={overlays.elevationContours}
+                onChange={() => toggleOverlay('elevationContours')}
+                className="rounded" 
+              />
               <span>Elevation Contours</span>
             </label>
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" className="rounded" />
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={overlays.weatherOverlay}
+                onChange={() => toggleOverlay('weatherOverlay')}
+                className="rounded" 
+              />
               <span>Weather Overlay</span>
             </label>
+          </div>
+          <div className="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-500">
+            <p>Data sources:</p>
+            <p>• swisstopo (geo.admin.ch)</p>
+            <p>• MeteoSwiss</p>
+            <p>• Swiss Federal Geodata</p>
           </div>
         </Card>
       )}

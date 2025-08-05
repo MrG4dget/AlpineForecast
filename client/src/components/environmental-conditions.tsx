@@ -25,6 +25,12 @@ interface WeatherData {
     lat: number;
     lng: number;
   };
+  // Swiss-specific fields
+  station?: string;
+  canton?: string;
+  municipality?: string;
+  dataSource?: string;
+  timestamp?: string;
 }
 
 interface EnvironmentalConditionsProps {
@@ -137,8 +143,31 @@ export default function EnvironmentalConditions({ weather }: EnvironmentalCondit
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
             <Thermometer className="h-5 w-5 text-forest-600 mr-2" />
             Current Conditions
+            {weather.canton && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                {weather.canton}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
+
+        {/* Swiss Data Source Attribution */}
+        {weather.dataSource && (
+          <div className="mb-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center text-xs text-blue-800">
+              <Info className="h-3 w-3 mr-1" />
+              <span className="font-medium">Data Source: {weather.dataSource}</span>
+            </div>
+            {weather.station && (
+              <p className="text-xs text-blue-600 mt-1">Station: {weather.station}</p>
+            )}
+            {weather.timestamp && (
+              <p className="text-xs text-blue-600">
+                Updated: {new Date(weather.timestamp).toLocaleString('de-CH')}
+              </p>
+            )}
+          </div>
+        )}
         
         {/* Weather Grid */}
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -263,6 +292,21 @@ export default function EnvironmentalConditions({ weather }: EnvironmentalCondit
             </div>
           </AlertDescription>
         </Alert>
+
+        {/* Swiss Foraging Recommendations */}
+        {weather.canton && (
+          <div className="mt-4 p-3 bg-forest-50 rounded-lg border border-forest-200">
+            <h5 className="font-medium text-forest-800 mb-2 text-sm">
+              🇨🇭 Swiss Foraging Tips for {weather.canton}
+            </h5>
+            <div className="text-xs text-forest-700 space-y-1">
+              <p>• Check local regulations before foraging</p>
+              <p>• Respect daily collection limits (2kg per person)</p>
+              <p>• Avoid protected forest areas</p>
+              <p>• Use official Swiss mushroom identification guides</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
