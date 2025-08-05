@@ -75,7 +75,7 @@ export class ProbabilityCalculator {
     }
 
     // Recent rainfall factor (0-15 points)
-    if (weather?.lastRainfall !== undefined) {
+    if (weather?.lastRainfall !== undefined && weather.lastRainfall !== null) {
       if (weather.lastRainfall <= 2) factors.recentRainfall = 15;
       else if (weather.lastRainfall <= 4) factors.recentRainfall = 12;
       else if (weather.lastRainfall <= 7) factors.recentRainfall = 8;
@@ -115,9 +115,9 @@ export class ProbabilityCalculator {
     }
 
     // Tree species factor (0-15 points)
-    if (location.treeSpecies && species.treeAssociations) {
+    if (location.treeSpecies && species.treeAssociations && species.treeAssociations.length > 0) {
       const matchingTrees = location.treeSpecies.filter(tree =>
-        species.treeAssociations.some(assoc =>
+        species.treeAssociations!.some(assoc =>
           tree.toLowerCase().includes(assoc.toLowerCase()) ||
           assoc.toLowerCase().includes(tree.toLowerCase())
         )

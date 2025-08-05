@@ -205,7 +205,7 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
-function calculateForagingProbability(location: any, weather: any): number {
+function calculateForagingProbability(location: ForagingLocation, weather: WeatherData | null): number {
   let probability = 50; // Base probability
 
   // Elevation factor
@@ -252,16 +252,16 @@ function calculateForagingProbability(location: any, weather: any): number {
   return Math.min(Math.max(probability, 0), 100);
 }
 
-async function getSuitableSpeciesForLocation(location: any, weather: any): Promise<string[]> {
+async function getSuitableSpeciesForLocation(location: ForagingLocation, weather: WeatherData | null): Promise<string[]> {
   const species = await storage.getMushroomSpecies();
   const currentMonth = new Date().getMonth();
   
   return species
     .filter(s => {
       // Check tree associations
-      const hasTreeMatch = s.treeAssociations.some(tree => 
-        location.treeSpecies.includes(tree)
-      );
+      const hasTreeMatch = s.treeAssociations && s.treeAssociations.length > 0 && location.treeSpecies && location.treeSpecies.length > 0 
+        ? s.treeAssociations.some(tree => location.treeSpecies!.includes(tree))
+        : false;
       
       // Check elevation
       const elevationOk = location.elevation >= (s.elevationMin || 0) && 
