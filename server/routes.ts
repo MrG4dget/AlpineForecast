@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMushroomSpeciesSchema, insertForagingLocationSchema, insertWeatherDataSchema, insertUserFindSchema } from "@shared/schema";
+import type { ForagingLocation, WeatherData, MushroomSpecies } from "@shared/schema";
 import { z } from "zod";
 import { swissFungiSync } from "./swiss-fungi-sync";
 
@@ -656,8 +657,8 @@ function calculateForagingProbability(location: ForagingLocation, weather: Weath
     
     // Bonus for specific valuable tree associations
     const valuableTrees = ['Oak', 'Beech', 'Birch', 'Pine', 'Spruce', 'Fir'];
-    const hasValuableTrees = location.treeSpecies.some(tree => 
-      valuableTrees.some(valuable => 
+    const hasValuableTrees = location.treeSpecies.some((tree: string) => 
+      valuableTrees.some((valuable: string) => 
         tree.toLowerCase().includes(valuable.toLowerCase())
       )
     );
@@ -811,8 +812,8 @@ async function getSuitableSpeciesForLocation(location: ForagingLocation, weather
     
     // Tree species check
     if (location.treeSpecies && species.treeAssociations && species.treeAssociations.length > 0) {
-      const matchingTrees = location.treeSpecies.filter(tree =>
-        species.treeAssociations!.some(assoc =>
+      const matchingTrees = location.treeSpecies.filter((tree: string) =>
+        species.treeAssociations!.some((assoc: string) =>
           tree.toLowerCase().includes(assoc.toLowerCase()) ||
           assoc.toLowerCase().includes(tree.toLowerCase())
         )

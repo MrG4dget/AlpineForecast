@@ -52,7 +52,7 @@ export default function MobileHeader() {
             <div className="flex items-center space-x-1 bg-forest-600 px-2 py-1 rounded-full text-xs">
               <CloudRain className="h-3 w-3 text-blue-300" />
               <span data-testid="current-temperature">
-                {Math.round(weather.temperature)}°C
+                {weather.temperature !== null ? Math.round(weather.temperature) : '--'}°C
               </span>
             </div>
           )}

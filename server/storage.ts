@@ -213,6 +213,14 @@ export class MemStorage implements IStorage {
       ...species,
       id,
       createdAt: new Date(),
+      description: species.description ?? null,
+      optimalTemp: species.optimalTemp ?? null,
+      optimalHumidity: species.optimalHumidity ?? null,
+      soilTempMin: species.soilTempMin ?? null,
+      elevationMin: species.elevationMin ?? null,
+      elevationMax: species.elevationMax ?? null,
+      imageUrl: species.imageUrl ?? null,
+      safetyNotes: species.safetyNotes ?? null,
     };
     this.mushroomSpecies.set(id, newSpecies);
     return newSpecies;
@@ -261,6 +269,14 @@ export class MemStorage implements IStorage {
       ...location,
       id,
       createdAt: new Date(),
+      elevation: location.elevation ?? null,
+      forestType: location.forestType ?? null,
+      treeSpecies: location.treeSpecies ?? null,
+      accessibility: location.accessibility ?? null,
+      parkingAvailable: location.parkingAvailable ?? null,
+      description: location.description ?? null,
+      municipality: location.municipality ?? null,
+      canton: location.canton ?? null,
     };
     this.foragingLocations.set(id, newLocation);
     return newLocation;
@@ -276,6 +292,14 @@ export class MemStorage implements IStorage {
       ...weather,
       id,
       timestamp: new Date(),
+      locationId: weather.locationId ?? null,
+      temperature: weather.temperature ?? null,
+      humidity: weather.humidity ?? null,
+      soilTemperature: weather.soilTemperature ?? null,
+      precipitation: weather.precipitation ?? null,
+      windSpeed: weather.windSpeed ?? null,
+      pressure: weather.pressure ?? null,
+      lastRainfall: weather.lastRainfall ?? null,
     };
     this.weatherData.set(id, newWeather);
     return newWeather;
@@ -302,6 +326,13 @@ export class MemStorage implements IStorage {
       ...find,
       id,
       foundAt: new Date(),
+      userId: find.userId ?? null,
+      speciesId: find.speciesId ?? null,
+      locationId: find.locationId ?? null,
+      quantity: find.quantity ?? null,
+      notes: find.notes ?? null,
+      photoUrl: find.photoUrl ?? null,
+      verified: find.verified ?? null,
     };
     this.userFinds.set(id, newFind);
     return newFind;

@@ -1,6 +1,6 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+modules = ["nodejs-20", "web"]
+run = "./start.sh"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist", ".replit", "replit.nix"]
 
 [nix]
 channel = "stable-24_05"
@@ -16,6 +16,9 @@ externalPort = 80
 
 [env]
 PORT = "5000"
+NODE_ENV = "development"
+# Database is not required - using in-memory storage
+# DATABASE_URL = "postgresql://user:password@localhost:5432/mushroom_app"
 
 [workflows]
 runButton = "Project"
@@ -35,5 +38,24 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "./start.sh"
 waitForPort = 5000
+
+[languages]
+
+[languages.typescript]
+pattern = "**/{*.ts,*.tsx}"
+[languages.typescript.languageServer]
+start = "typescript-language-server --stdio"
+
+[debugger]
+support = true
+
+[debugger.interactive]
+transport = "localhost:0"
+startCommand = ["npm", "run", "dev"]
+
+[debugger.interactive.integratedAdapter]
+dapTcpAddress = "localhost:0"
+dapTcpPort = 9229
+previewPort = 5000

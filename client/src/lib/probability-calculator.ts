@@ -383,28 +383,28 @@ export class ProbabilityCalculator {
     // Weather factors - matches server logic
     if (weather) {
       // Temperature
-      if (weather.temperature >= 15 && weather.temperature <= 22) {
+      if (weather.temperature !== null && weather.temperature >= 15 && weather.temperature <= 22) {
         probability += 15;
-      } else if (weather.temperature >= 10 && weather.temperature <= 25) {
+      } else if (weather.temperature !== null && weather.temperature >= 10 && weather.temperature <= 25) {
         probability += 5;
       }
 
       // Humidity
-      if (weather.humidity >= 80) {
+      if (weather.humidity !== null && weather.humidity >= 80) {
         probability += 10;
-      } else if (weather.humidity >= 70) {
+      } else if (weather.humidity !== null && weather.humidity >= 70) {
         probability += 5;
       }
 
       // Recent rainfall
-      if (weather.lastRainfall <= 3) {
+      if (weather.lastRainfall !== null && weather.lastRainfall <= 3) {
         probability += 10;
-      } else if (weather.lastRainfall <= 7) {
+      } else if (weather.lastRainfall !== null && weather.lastRainfall <= 7) {
         probability += 5;
       }
 
       // Soil temperature
-      if (weather.soilTemperature >= 12) {
+      if (weather.soilTemperature !== null && weather.soilTemperature >= 12) {
         probability += 10;
       }
     }
