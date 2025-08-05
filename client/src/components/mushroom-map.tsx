@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, Layers, Navigation } from "lucide-react";
+import { Plus, Minus, Layers, Navigation, AlertTriangle, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { LocationWithProbability } from "@shared/schema";
@@ -24,6 +24,54 @@ interface MushroomMapProps {
   radius: number;
 }
 
+// Base layer types
+interface BaseLayerOption {
+  id: string;
+  name: string;
+  url: string;
+  attribution: string;
+  maxZoom?: number;
+}
+
+const BASE_LAYERS: BaseLayerOption[] = [
+  {
+    id: 'osm',
+    name: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  },
+  {
+    id: 'osm-france',
+    name: 'OpenStreetMap France',
+    url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  },
+  {
+    id: 'cartodb-positron',
+    name: 'CartoDB Light',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  },
+  {
+    id: 'cartodb-dark',
+    name: 'CartoDB Dark',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  },
+  {
+    id: 'esri-satellite',
+    name: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  },
+  {
+    id: 'esri-topo',
+    name: 'Topographic',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+  }
+];
+
 // Overlay state interface
 interface OverlayState {
   foragingLocations: boolean;
@@ -32,14 +80,30 @@ interface OverlayState {
   weatherOverlay: boolean;
 }
 
-// Custom WMS Layer Component
+// Overlay loading state
+interface OverlayLoadingState {
+  forestTypes: boolean;
+  elevationContours: boolean;
+  weatherOverlay: boolean;
+}
+
+// Overlay error state
+interface OverlayErrorState {
+  forestTypes: boolean;
+  elevationContours: boolean;
+  weatherOverlay: boolean;
+}
+
+// Enhanced WMS Layer Component with error handling
 function WMSLayer({ 
   url, 
   layers, 
   format = "image/png", 
   transparent = true, 
   opacity = 0.6,
-  attribution = ""
+  attribution = "",
+  onLoad,
+  onError
 }: {
   url: string;
   layers: string;
@@ -47,24 +111,52 @@ function WMSLayer({
   transparent?: boolean;
   opacity?: number;
   attribution?: string;
+  onLoad?: () => void;
+  onError?: (error: any) => void;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    const wmsLayer = L.tileLayer.wms(url, {
-      layers,
-      format,
-      transparent,
-      opacity,
-      attribution,
-    });
+    let wmsLayer: L.TileLayer.WMS | null = null;
+    
+    try {
+      wmsLayer = L.tileLayer.wms(url, {
+        layers,
+        format,
+        transparent,
+        opacity,
+        attribution,
+        // Add error handling
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', // 1x1 transparent pixel
+      });
 
-    map.addLayer(wmsLayer);
+      // Handle tile load events
+      wmsLayer.on('load', () => {
+        onLoad?.();
+      });
+
+      wmsLayer.on('tileerror', (error) => {
+        console.warn(`WMS tile error for layer ${layers}:`, error);
+        onError?.(error);
+      });
+
+      map.addLayer(wmsLayer);
+      onLoad?.();
+    } catch (error) {
+      console.error(`Error creating WMS layer ${layers}:`, error);
+      onError?.(error);
+    }
 
     return () => {
-      map.removeLayer(wmsLayer);
+      if (wmsLayer) {
+        try {
+          map.removeLayer(wmsLayer);
+        } catch (error) {
+          console.warn('Error removing WMS layer:', error);
+        }
+      }
     };
-  }, [map, url, layers, format, transparent, opacity, attribution]);
+  }, [map, url, layers, format, transparent, opacity, attribution, onLoad, onError]);
 
   return null;
 }
@@ -98,8 +190,19 @@ function ZoomControl({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut:
 export default function MushroomMap({ center, locations, radius }: MushroomMapProps) {
   const [zoom, setZoom] = useState(12);
   const [showLayers, setShowLayers] = useState(false);
+  const [selectedBaseLayer, setSelectedBaseLayer] = useState<string>('osm');
   const [overlays, setOverlays] = useState<OverlayState>({
     foragingLocations: true,
+    forestTypes: false,
+    elevationContours: false,
+    weatherOverlay: false,
+  });
+  const [overlayLoading, setOverlayLoading] = useState<OverlayLoadingState>({
+    forestTypes: false,
+    elevationContours: false,
+    weatherOverlay: false,
+  });
+  const [overlayErrors, setOverlayErrors] = useState<OverlayErrorState>({
     forestTypes: false,
     elevationContours: false,
     weatherOverlay: false,
@@ -108,11 +211,56 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
 
   // Handle overlay toggle
   const toggleOverlay = (overlayName: keyof OverlayState) => {
-    setOverlays(prev => ({
+    setOverlays(prev => {
+      const newState = {
+        ...prev,
+        [overlayName]: !prev[overlayName]
+      };
+
+      // Set loading state when enabling overlay
+      if (!prev[overlayName] && overlayName !== 'foragingLocations') {
+        setOverlayLoading(loadingPrev => ({
+          ...loadingPrev,
+          [overlayName]: true
+        }));
+        // Clear any previous errors
+        setOverlayErrors(errorPrev => ({
+          ...errorPrev,
+          [overlayName]: false
+        }));
+      }
+
+      return newState;
+    });
+  };
+
+  // Handle overlay load success
+  const handleOverlayLoad = (overlayName: keyof OverlayLoadingState) => {
+    setOverlayLoading(prev => ({
       ...prev,
-      [overlayName]: !prev[overlayName]
+      [overlayName]: false
+    }));
+    setOverlayErrors(prev => ({
+      ...prev,
+      [overlayName]: false
     }));
   };
+
+  // Handle overlay load error
+  const handleOverlayError = (overlayName: keyof OverlayErrorState, error: any) => {
+    setOverlayLoading(prev => ({
+      ...prev,
+      [overlayName]: false
+    }));
+    setOverlayErrors(prev => ({
+      ...prev,
+      [overlayName]: true
+    }));
+    console.error(`Overlay ${overlayName} failed to load:`, error);
+  };
+
+  // Get selected base layer configuration
+  const currentBaseLayer = BASE_LAYERS.find(layer => layer.id === selectedBaseLayer) || BASE_LAYERS[0];
 
   // Create custom markers for different probability levels
   const createProbabilityIcon = (probability: number) => {
@@ -168,7 +316,7 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
 
   return (
     <div className="relative h-96 bg-forest-100" data-testid="mushroom-map">
-      {/* OpenStreetMap Container */}
+      {/* Map Container */}
       <MapContainer
         center={[center.latitude, center.longitude]}
         zoom={zoom}
@@ -178,8 +326,9 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
       >
         {/* Base Map Tiles */}
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url={currentBaseLayer.url}
+          attribution={currentBaseLayer.attribution}
+          maxZoom={currentBaseLayer.maxZoom || 18}
         />
         
         {/* Swiss Forest Types Overlay - Using swisstopo WMS */}
@@ -191,6 +340,8 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
             transparent={true}
             opacity={0.6}
             attribution='&copy; <a href="https://www.geo.admin.ch/">swisstopo</a>'
+            onLoad={() => handleOverlayLoad('forestTypes')}
+            onError={(error) => handleOverlayError('forestTypes', error)}
           />
         )}
 
@@ -203,6 +354,8 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
             transparent={true}
             opacity={0.4}
             attribution='&copy; <a href="https://www.swisstopo.admin.ch/">swisstopo</a>'
+            onLoad={() => handleOverlayLoad('elevationContours')}
+            onError={(error) => handleOverlayError('elevationContours', error)}
           />
         )}
 
@@ -215,6 +368,8 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
             transparent={true}
             opacity={0.5}
             attribution='&copy; <a href="https://www.meteoschweiz.admin.ch/">MeteoSwiss</a>'
+            onLoad={() => handleOverlayLoad('weatherOverlay')}
+            onError={(error) => handleOverlayError('weatherOverlay', error)}
           />
         )}
         
@@ -319,60 +474,121 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
         {(overlays.forestTypes || overlays.elevationContours || overlays.weatherOverlay) && (
           <div className="mt-2 pt-2 border-t border-gray-200">
             <h5 className="font-medium text-gray-900 mb-1">Active Overlays</h5>
-            {overlays.forestTypes && <div className="text-green-600">🌲 Forest Types</div>}
-            {overlays.elevationContours && <div className="text-brown-600">⛰️ Elevation</div>}
-            {overlays.weatherOverlay && <div className="text-blue-600">🌡️ Temperature</div>}
+            {overlays.forestTypes && (
+              <div className="flex items-center space-x-1">
+                <span className="text-green-600">🌲 Forest Types</span>
+                {overlayLoading.forestTypes && <Loader2 className="h-3 w-3 animate-spin" />}
+                {overlayErrors.forestTypes && <AlertTriangle className="h-3 w-3 text-red-500" />}
+              </div>
+            )}
+            {overlays.elevationContours && (
+              <div className="flex items-center space-x-1">
+                <span className="text-brown-600">⛰️ Elevation</span>
+                {overlayLoading.elevationContours && <Loader2 className="h-3 w-3 animate-spin" />}
+                {overlayErrors.elevationContours && <AlertTriangle className="h-3 w-3 text-red-500" />}
+              </div>
+            )}
+            {overlays.weatherOverlay && (
+              <div className="flex items-center space-x-1">
+                <span className="text-blue-600">🌡️ Temperature</span>
+                {overlayLoading.weatherOverlay && <Loader2 className="h-3 w-3 animate-spin" />}
+                {overlayErrors.weatherOverlay && <AlertTriangle className="h-3 w-3 text-red-500" />}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Enhanced Layers Panel with Working Controls */}
+      {/* Enhanced Layers Panel with Base Layer Selection */}
       {showLayers && (
-        <Card className="absolute top-4 left-4 p-3 shadow-lg" data-testid="layers-panel">
-          <h4 className="font-medium text-gray-900 mb-2 text-sm">Map Layers</h4>
-          <div className="space-y-2 text-xs">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={overlays.foragingLocations}
-                onChange={() => toggleOverlay('foragingLocations')}
-                className="rounded" 
-              />
-              <span>Foraging Locations</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={overlays.forestTypes}
-                onChange={() => toggleOverlay('forestTypes')}
-                className="rounded" 
-              />
-              <span>Forest Types (Swiss)</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={overlays.elevationContours}
-                onChange={() => toggleOverlay('elevationContours')}
-                className="rounded" 
-              />
-              <span>Elevation Contours</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={overlays.weatherOverlay}
-                onChange={() => toggleOverlay('weatherOverlay')}
-                className="rounded" 
-              />
-              <span>Weather Overlay</span>
-            </label>
+        <Card className="absolute top-4 left-4 p-4 shadow-lg max-w-xs" data-testid="layers-panel">
+          <h4 className="font-medium text-gray-900 mb-3 text-sm">Map Settings</h4>
+          
+          {/* Base Layer Selection */}
+          <div className="mb-4">
+            <h5 className="font-medium text-gray-700 mb-2 text-xs">Base Layer</h5>
+            <div className="space-y-1">
+              {BASE_LAYERS.map((layer) => (
+                <label key={layer.id} className="flex items-center space-x-2 cursor-pointer text-xs">
+                  <input 
+                    type="radio" 
+                    name="baseLayer"
+                    value={layer.id}
+                    checked={selectedBaseLayer === layer.id}
+                    onChange={(e) => setSelectedBaseLayer(e.target.value)}
+                    className="rounded" 
+                  />
+                  <span>{layer.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
+
+          {/* Overlay Controls */}
+          <div className="border-t border-gray-200 pt-3">
+            <h5 className="font-medium text-gray-700 mb-2 text-xs">Overlays</h5>
+            <div className="space-y-2 text-xs">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={overlays.foragingLocations}
+                  onChange={() => toggleOverlay('foragingLocations')}
+                  className="rounded" 
+                />
+                <span>Foraging Locations</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={overlays.forestTypes}
+                  onChange={() => toggleOverlay('forestTypes')}
+                  className="rounded" 
+                />
+                <span className="flex items-center space-x-1">
+                  <span>Forest Types (Swiss)</span>
+                  {overlayLoading.forestTypes && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {overlayErrors.forestTypes && <AlertTriangle className="h-3 w-3 text-red-500" title="Failed to load overlay" />}
+                </span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={overlays.elevationContours}
+                  onChange={() => toggleOverlay('elevationContours')}
+                  className="rounded" 
+                />
+                <span className="flex items-center space-x-1">
+                  <span>Elevation Contours</span>
+                  {overlayLoading.elevationContours && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {overlayErrors.elevationContours && <AlertTriangle className="h-3 w-3 text-red-500" title="Failed to load overlay" />}
+                </span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={overlays.weatherOverlay}
+                  onChange={() => toggleOverlay('weatherOverlay')}
+                  className="rounded" 
+                />
+                <span className="flex items-center space-x-1">
+                  <span>Weather Overlay</span>
+                  {overlayLoading.weatherOverlay && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {overlayErrors.weatherOverlay && <AlertTriangle className="h-3 w-3 text-red-500" title="Failed to load overlay" />}
+                </span>
+              </label>
+            </div>
+          </div>
+
           <div className="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-500">
             <p>Data sources:</p>
             <p>• swisstopo (geo.admin.ch)</p>
             <p>• MeteoSwiss</p>
             <p>• Swiss Federal Geodata</p>
+            {(overlayErrors.forestTypes || overlayErrors.elevationContours || overlayErrors.weatherOverlay) && (
+              <p className="text-red-500 mt-1">
+                ⚠️ Some overlays failed to load due to CORS restrictions
+              </p>
+            )}
           </div>
         </Card>
       )}
