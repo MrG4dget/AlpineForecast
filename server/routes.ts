@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMushroomSpeciesSchema, insertForagingLocationSchema, insertWeatherDataSchema, insertUserFindSchema } from "@shared/schema";
 import { z } from "zod";
+import { swissFungiSync } from "./swiss-fungi-sync";
 
 const coordinatesSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -336,6 +337,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid find data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create find" });
+    }
+  });
+
+  // Swiss Fungi integration routes
+  app.get("/api/swiss-fungi/status", async (req, res) => {
+    try {
+      const status = swissFungiSync.getSyncStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get sync status" });
+    }
+  });
+
+  app.get("/api/swiss-fungi/comparison", async (req, res) => {
+    try {
+      const comparison = await swissFungiSync.getSpeciesComparisonReport();
+      res.json(comparison);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate comparison report" });
+    }
+  });
+
+  app.post("/api/swiss-fungi/sync", async (req, res) => {
+    try {
+      const options = {
+        maxSpecies: req.body.maxSpecies ? parseInt(req.body.maxSpecies) : undefined,
+        updateExisting: req.body.updateExisting === true,
+        addMissing: req.body.addMissing === true
+      };
+
+      const report = await swissFungiSync.syncWithSwissFungi(options);
+      res.json(report);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Sync already in progress') {
+        return res.status(409).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to sync with Swiss Fungi database" });
+    }
+  });
+
+  app.post("/api/swiss-fungi/add-curated", async (req, res) => {
+    try {
+      const report = await swissFungiSync.addCuratedSwissSpecies();
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add curated Swiss species" });
+    }
+  });
+
+  // Enhanced species search with Swiss Fungi data
+  app.get("/api/species/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.length < 2) {
+        return res.status(400).json({ message: "Query must be at least 2 characters long" });
+      }
+
+      const species = await storage.getMushroomSpecies();
+      const filtered = species.filter(s => 
+        s.name.toLowerCase().includes(query.toLowerCase()) ||
+        s.scientificName.toLowerCase().includes(query.toLowerCase())
+      );
+
+      res.json(filtered);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search species" });
     }
   });
 
