@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -156,7 +156,7 @@ function WMSLayer({
         }
       }
     };
-  }, [map, url, layers, format, transparent, opacity, attribution, onLoad, onError]);
+  }, [map, url, layers, format, transparent, opacity, attribution]);
 
   return null;
 }
@@ -235,7 +235,7 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
   };
 
   // Handle overlay load success
-  const handleOverlayLoad = (overlayName: keyof OverlayLoadingState) => {
+  const handleOverlayLoad = useCallback((overlayName: keyof OverlayLoadingState) => {
     setOverlayLoading(prev => ({
       ...prev,
       [overlayName]: false
@@ -244,10 +244,10 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
       ...prev,
       [overlayName]: false
     }));
-  };
+  }, []);
 
   // Handle overlay load error
-  const handleOverlayError = (overlayName: keyof OverlayErrorState, error: any) => {
+  const handleOverlayError = useCallback((overlayName: keyof OverlayErrorState, error: any) => {
     setOverlayLoading(prev => ({
       ...prev,
       [overlayName]: false
@@ -257,7 +257,7 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
       [overlayName]: true
     }));
     console.error(`Overlay ${overlayName} failed to load:`, error);
-  };
+  }, []);
 
   // Get selected base layer configuration
   const currentBaseLayer = BASE_LAYERS.find(layer => layer.id === selectedBaseLayer) || BASE_LAYERS[0];

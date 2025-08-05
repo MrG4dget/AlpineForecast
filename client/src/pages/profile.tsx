@@ -1,5 +1,6 @@
 import MobileHeader from "@/components/mobile-header";
 import BottomNavigation from "@/components/bottom-navigation";
+import { SwissFungiPanel } from "@/components/SwissFungiPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -240,6 +241,9 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Swiss Fungi Integration */}
+        <SwissFungiPanel />
 
         {/* App Info */}
         <Card>
