@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(144, 43%, 46%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+  
+  /* Forest theme colors */
+  --forest-50: hsl(85, 50%, 96%);
+  --forest-100: hsl(85, 45%, 92%);
+  --forest-200: hsl(85, 40%, 80%);
+  --forest-300: hsl(85, 35%, 68%);
+  --forest-400: hsl(85, 30%, 56%);
+  --forest-500: hsl(144, 43%, 46%);
+  --forest-600: hsl(144, 50%, 36%);
+  --forest-700: hsl(144, 60%, 26%);
+  --forest-800: hsl(144, 70%, 16%);
+  --forest-900: hsl(144, 80%, 10%);
+  
+  /* Earth theme colors */
+  --earth-50: hsl(33, 50%, 97%);
+  --earth-100: hsl(33, 45%, 94%);
+  --earth-200: hsl(33, 40%, 84%);
+  --earth-300: hsl(33, 35%, 74%);
+  --earth-400: hsl(33, 30%, 64%);
+  --earth-500: hsl(19, 54%, 40%);
+  --earth-600: hsl(19, 60%, 30%);
+  --earth-700: hsl(19, 70%, 25%);
+  --earth-800: hsl(19, 80%, 20%);
+  --earth-900: hsl(19, 90%, 15%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(144, 43%, 46%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Custom forest-themed styles */
+.forest-gradient {
+  background: linear-gradient(135deg, var(--forest-600), var(--forest-700));
+}
+
+.earth-gradient {
+  background: linear-gradient(135deg, var(--earth-600), var(--earth-700));
+}
+
+/* Map marker animations */
+.marker-pulse {
+  animation: pulse-marker 2s infinite;
+}
+
+@keyframes pulse-marker {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Mobile-first responsive utilities */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* High contrast for outdoor visibility */
+.outdoor-contrast {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Offline indicator styles */
+.offline-indicator {
+  background: linear-gradient(45deg, #ff6b6b, #feca57);
+  animation: offline-pulse 2s infinite;
+}
+
+@keyframes offline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
