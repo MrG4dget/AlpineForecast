@@ -1,9 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Layers, Navigation } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import type { LocationWithProbability } from "@shared/schema";
+
+// Fix Leaflet default markers issue in webpack
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 interface MushroomMapProps {
   center: {
@@ -14,16 +24,62 @@ interface MushroomMapProps {
   radius: number;
 }
 
+// Zoom Control Component
+function ZoomControl({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut: () => void }) {
+  return (
+    <div className="absolute top-4 right-4 space-y-2 z-[1000]">
+      <Button
+        size="icon"
+        variant="secondary"
+        className="bg-white shadow-lg hover:bg-gray-50"
+        onClick={onZoomIn}
+        data-testid="button-zoom-in"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+      <Button
+        size="icon"
+        variant="secondary"
+        className="bg-white shadow-lg hover:bg-gray-50"
+        onClick={onZoomOut}
+        data-testid="button-zoom-out"
+      >
+        <Minus className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export default function MushroomMap({ center, locations, radius }: MushroomMapProps) {
   const [zoom, setZoom] = useState(12);
   const [showLayers, setShowLayers] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
 
-  // Mock map tiles for demonstration
-  const mapStyle = {
-    backgroundImage: `url("https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400")`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
+  // Create custom markers for different probability levels
+  const createProbabilityIcon = (probability: number) => {
+    const color = getProbabilityColor(probability);
+    const htmlColor = color === "bg-forest-600" ? "#16a34a" : 
+                     color === "bg-yellow-500" ? "#eab308" :
+                     color === "bg-earth-600" ? "#a3665b" : "#6b7280";
+    
+    return L.divIcon({
+      html: `<div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg" style="background-color: ${htmlColor}">${Math.round(probability)}</div>`,
+      className: 'custom-marker',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
   };
+
+  // Create user location icon
+  const userLocationIcon = L.divIcon({
+    html: `<div class="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center relative">
+             <div class="w-2 h-2 bg-white rounded-full"></div>
+             <div class="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-30"></div>
+           </div>`,
+    className: 'user-location-marker',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
 
   const getProbabilityColor = (probability: number) => {
     if (probability >= 90) return "bg-forest-600";
@@ -39,82 +95,97 @@ export default function MushroomMap({ center, locations, radius }: MushroomMapPr
     return "Poor";
   };
 
+  const handleZoomIn = () => {
+    if (mapRef.current) {
+      mapRef.current.setZoom(Math.min(mapRef.current.getZoom() + 1, 18));
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      mapRef.current.setZoom(Math.max(mapRef.current.getZoom() - 1, 8));
+    }
+  };
+
   return (
     <div className="relative h-96 bg-forest-100" data-testid="mushroom-map">
-      {/* Map Container */}
-      <div className="absolute inset-0 overflow-hidden" style={mapStyle}>
-        {/* Map Overlay */}
-        <div className="absolute inset-0 bg-forest-900 bg-opacity-20">
-          {/* Location Markers */}
-          {locations.map((location, index) => {
-            // Simple positioning based on relative coordinates
-            const x = 20 + (index * 25) % 60;
-            const y = 20 + Math.floor(index / 3) * 30;
-            
-            return (
-              <div
-                key={location.id}
-                className={`absolute marker-pulse`}
-                style={{ 
-                  left: `${x}%`, 
-                  top: `${y}%`,
-                  transform: 'translate(-50%, -50%)'
-                }}
-                data-testid={`marker-${location.id}`}
-              >
-                <div className={`${getProbabilityColor(location.probability)} text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg`}>
-                  {Math.round(location.probability)}
-                </div>
-                <div className="bg-white text-gray-700 text-xs px-2 py-1 rounded mt-1 shadow-md font-medium max-w-20 text-center truncate">
-                  {location.suitableSpecies[0] || "Mixed"}
-                </div>
-              </div>
-            );
-          })}
-          
-          {/* User Location */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" data-testid="user-location">
-            <div className="bg-blue-600 rounded-full w-4 h-4 flex items-center justify-center relative">
-              <div className="bg-white rounded-full w-2 h-2"></div>
-              <div className="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-30"></div>
+      {/* OpenStreetMap Container */}
+      <MapContainer
+        center={[center.latitude, center.longitude]}
+        zoom={zoom}
+        className="h-full w-full z-0"
+        zoomControl={false}
+        ref={mapRef}
+      >
+        {/* OpenStreetMap Tiles */}
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        
+        {/* User Location Marker */}
+        <Marker 
+          position={[center.latitude, center.longitude]} 
+          icon={userLocationIcon}
+        >
+          <Popup>
+            <div className="text-sm">
+              <strong>Your Location</strong>
+              <br />
+              Searching within {radius} km radius
             </div>
-          </div>
-          
-          {/* Search Radius Circle */}
-          <div 
-            className="absolute border-2 border-blue-400 border-opacity-50 rounded-full pointer-events-none"
-            style={{
-              width: `${radius * 20}px`,
-              height: `${radius * 20}px`,
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)'
-            }}
-            data-testid="search-radius"
-          />
-        </div>
-      </div>
+          </Popup>
+        </Marker>
+
+        {/* Search Radius Circle */}
+        <Circle
+          center={[center.latitude, center.longitude]}
+          radius={radius * 1000} // Convert km to meters
+          pathOptions={{
+            color: '#3b82f6',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.1,
+            weight: 2,
+            opacity: 0.5,
+          }}
+        />
+
+        {/* Foraging Location Markers */}
+        {locations.map((location) => (
+          <Marker
+            key={location.id}
+            position={[location.latitude, location.longitude]}
+            icon={createProbabilityIcon(location.probability)}
+          >
+            <Popup>
+              <div className="text-sm">
+                <strong>{location.name}</strong>
+                <br />
+                <span className="text-gray-600">Probability: {Math.round(location.probability)}% - {getProbabilityLabel(location.probability)}</span>
+                <br />
+                {location.elevation && <span className="text-gray-600">Elevation: {location.elevation}m</span>}
+                <br />
+                {location.forestType && <span className="text-gray-600">Forest: {location.forestType}</span>}
+                <br />
+                {location.suitableSpecies.length > 0 && (
+                  <div className="mt-2">
+                    <strong>Species found:</strong>
+                    <br />
+                    {location.suitableSpecies.slice(0, 3).join(", ")}
+                    {location.suitableSpecies.length > 3 && "..."}
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
       
       {/* Map Controls */}
-      <div className="absolute top-4 right-4 space-y-2">
-        <Button
-          size="icon"
-          variant="secondary"
-          className="bg-white shadow-lg hover:bg-gray-50"
-          onClick={() => setZoom(Math.min(zoom + 1, 18))}
-          data-testid="button-zoom-in"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="secondary"
-          className="bg-white shadow-lg hover:bg-gray-50"
-          onClick={() => setZoom(Math.max(zoom - 1, 8))}
-          data-testid="button-zoom-out"
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
+      <ZoomControl onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
+      
+      {/* Layers Toggle */}
+      <div className="absolute top-4 right-4 space-y-2 z-[1000] mt-20">
         <Button
           size="icon"
           variant="secondary"
