@@ -156,7 +156,7 @@ function WMSLayer({
         }
       }
     };
-  }, [map, url, layers, format, transparent, opacity, attribution]);
+  }, [map, url, layers, format, transparent, opacity, attribution, onLoad, onError]);
 
   return null;
 }
