@@ -9,8 +9,8 @@
  * 3. Fetching species information from Swiss Fungi database
  */
 
-import { swissFungiSync } from './server/swiss-fungi-sync.js';
-import { storage } from './server/storage.js';
+import { swissFungiSync } from './server/swiss-fungi-sync.ts';
+import { storage } from './server/storage.ts';
 
 async function runDemo() {
   console.log('🍄 Swiss Fungi Integration Demo\n');
